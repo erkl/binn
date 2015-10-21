@@ -98,6 +98,40 @@ func (x fieldsByIndex) Less(i, j int) bool {
 	return len(a) < len(b)
 }
 
+// The describe function produces a string describing the type of
+// the first value in b.
+func describe(b []byte) string {
+	switch k := b[0]; {
+	case k <= 0x07:
+		return "positive integer"
+	case k <= 0x0f:
+		return "negative integer"
+	case k <= 0x10:
+		return "nil"
+	case k <= 0x12:
+		return "bool"
+	case k <= 0x13:
+		// todo: Check for "duration".
+		return "timestamp"
+	case k <= 0x1f:
+		return "floating-point number"
+	case k <= 0x27:
+		return "negative integer"
+	case k <= 0x2f:
+		return "positive integer"
+	case k <= 0x4f:
+		return "map"
+	case k <= 0x6f:
+		return "list"
+	case k <= 0xdf:
+		return "string"
+	case k <= 0xef:
+		return "binary"
+	default:
+		return "extension"
+	}
+}
+
 // isRangePanic returns true if x is a runtime panic error caused by reading
 // a slice index beyond its length.
 func isRangePanic(x interface{}) bool {
