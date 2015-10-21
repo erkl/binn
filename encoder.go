@@ -25,6 +25,11 @@ func NewEncoder() *Encoder {
 }
 
 func (e *Encoder) Marshal(prefix []byte, v interface{}) (out []byte, err error) {
+	if v == nil {
+		return append(prefix, 0x10), nil
+	}
+
+	// Catch our own "exceptions".
 	defer func() {
 		if r := recover(); r != nil {
 			if t, ok := r.(thrown); ok {
