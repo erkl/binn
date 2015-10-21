@@ -4,6 +4,11 @@ import (
 	"fmt"
 )
 
+const (
+	intBits = 32 << (^uint(0) >> 63)
+	maxInt  = 1<<(intBits-1) - 1
+)
+
 // The throwf function allows for rudimentary exception-style error handling.
 // By wrapping the error in a custom struct type we can easily distinguish
 // our own thrown errors from other panics.
