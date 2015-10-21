@@ -167,7 +167,9 @@ func (e *Encoder) _compileSlice(f *encoder, t reflect.Type) {
 	if t.Elem().Kind() == reflect.Uint8 {
 		*f = encodeByteSlice
 	} else {
-		throwf("todo: encode slice")
+		le := new(listEncoder)
+		e._compile(&le.encodeElem, t.Elem())
+		*f = le.encode
 	}
 }
 
@@ -175,12 +177,17 @@ func (e *Encoder) _compileArray(f *encoder, t reflect.Type) {
 	if t.Elem().Kind() == reflect.Uint8 {
 		*f = encodeByteArray
 	} else {
-		throwf("todo: encode slice")
+		le := new(listEncoder)
+		e._compile(&le.encodeElem, t.Elem())
+		*f = le.encode
 	}
 }
 
 func (e *Encoder) _compileMap(f *encoder, t reflect.Type) {
-	throwf("todo: encode map")
+	me := new(mapEncoder)
+	e._compile(&me.encodeKey, t.Key())
+	e._compile(&me.encodeElem, t.Elem())
+	*f = me.encode
 }
 
 func (e *Encoder) _compileStruct(f *encoder, t reflect.Type) {

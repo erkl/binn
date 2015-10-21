@@ -30,6 +30,48 @@ func (ie *interfaceEncoder) encode(b []byte, v reflect.Value) []byte {
 	}
 }
 
+type listEncoder struct {
+	encodeElem encoder
+}
+
+func (le *listEncoder) encode(b []byte, v reflect.Value) []byte {
+	n := v.Len()
+
+	if n < (0x6c - 0x50) {
+		b = append(b, byte(0x50+n))
+	} else {
+		b = encodeK4(b, 0x6c, uint64(n))
+	}
+
+	for i := 0; i < n; i++ {
+		b = le.encodeElem(b, v.Index(i))
+	}
+
+	return b
+}
+
+type mapEncoder struct {
+	encodeKey  encoder
+	encodeElem encoder
+}
+
+func (me *mapEncoder) encode(b []byte, v reflect.Value) []byte {
+	n := v.Len()
+
+	if n < (0x4c - 0x30) {
+		b = append(b, byte(0x30+n))
+	} else {
+		b = encodeK4(b, 0x4c, uint64(n))
+	}
+
+	for _, k := range v.MapKeys() {
+		b = me.encodeKey(b, k)
+		b = me.encodeElem(b, v.MapIndex(k))
+	}
+
+	return b
+}
+
 func encodeBool(b []byte, v reflect.Value) []byte {
 	if v.Bool() {
 		return append(b, 0x12)
