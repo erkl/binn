@@ -196,5 +196,18 @@ func (e *Encoder) _compileMap(f *encoder, t reflect.Type) {
 }
 
 func (e *Encoder) _compileStruct(f *encoder, t reflect.Type) {
-	throwf("todo: encode struct")
+	fields := enumStructFields(t)
+	se := &structEncoder{
+		fields: make([]structEncoderField, len(fields)),
+	}
+
+	for i, f := range fields {
+		se.fields[i] = structEncoderField{
+			name:  encodeString(nil, reflect.ValueOf(f.Name)),
+			index: f.Index,
+		}
+		e._compile(&se.fields[i].encode, t.FieldByIndex(f.Index).Type)
+	}
+
+	*f = se.encode
 }

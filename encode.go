@@ -72,6 +72,33 @@ func (me *mapEncoder) encode(b []byte, v reflect.Value) []byte {
 	return b
 }
 
+type structEncoder struct {
+	fields []structEncoderField
+}
+
+type structEncoderField struct {
+	name   []byte
+	index  []int
+	encode encoder
+}
+
+func (se *structEncoder) encode(b []byte, v reflect.Value) []byte {
+	n := len(se.fields)
+
+	if n < (0x4c - 0x30) {
+		b = append(b, byte(0x30+n))
+	} else {
+		b = encodeK4(b, 0x4c, uint64(n))
+	}
+
+	for _, f := range se.fields {
+		b = append(b, f.name...)
+		b = f.encode(b, v.FieldByIndex(f.index))
+	}
+
+	return b
+}
+
 func encodeBool(b []byte, v reflect.Value) []byte {
 	if v.Bool() {
 		return append(b, 0x12)
