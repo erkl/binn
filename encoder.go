@@ -145,7 +145,7 @@ func (e *Encoder) _compile(f *encoder, t reflect.Type) {
 			e._compileStruct(f, t)
 
 		default:
-			throwf("binn: cannot encode type: %s", t)
+			throwf("binn: unsupported type: %s", t)
 		}
 
 		// Now that the encoder has been built, fill in any blanks.
