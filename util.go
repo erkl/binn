@@ -3,6 +3,8 @@ package binn
 import (
 	"fmt"
 	"reflect"
+	"regexp"
+	"runtime"
 	"sort"
 )
 
@@ -95,3 +97,12 @@ func (x fieldsByIndex) Less(i, j int) bool {
 
 	return len(a) < len(b)
 }
+
+// isRangePanic returns true if x is a runtime panic error caused by reading
+// a slice index beyond its length.
+func isRangePanic(x interface{}) bool {
+	err, ok := x.(runtime.Error)
+	return ok && errRangeRegexp.MatchString(err.Error())
+}
+
+var errRangeRegexp = regexp.MustCompile("^runtime error: (index|slice bounds) out of range$")
