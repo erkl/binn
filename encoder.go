@@ -152,11 +152,15 @@ func (e *Encoder) _compile(f *encoder, t reflect.Type) {
 }
 
 func (e *Encoder) _compilePointer(f *encoder, t reflect.Type) {
-	throwf("todo: encode pointer")
+	pe := new(pointerEncoder)
+	e._compile(&pe.encodeElem, t.Elem())
+	*f = pe.encode
 }
 
 func (e *Encoder) _compileInterface(f *encoder, t reflect.Type) {
-	throwf("todo: encode interface")
+	ie := new(interfaceEncoder)
+	ie.encoder = e
+	*f = ie.encode
 }
 
 func (e *Encoder) _compileSlice(f *encoder, t reflect.Type) {

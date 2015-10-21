@@ -5,6 +5,31 @@ import (
 	"reflect"
 )
 
+type pointerEncoder struct {
+	encodeElem encoder
+}
+
+func (pe *pointerEncoder) encode(b []byte, v reflect.Value) []byte {
+	if v.IsNil() {
+		return append(b, 0x10)
+	} else {
+		return pe.encodeElem(b, v.Elem())
+	}
+}
+
+type interfaceEncoder struct {
+	encoder *Encoder
+}
+
+func (ie *interfaceEncoder) encode(b []byte, v reflect.Value) []byte {
+	if v.IsNil() {
+		return append(b, 0x10)
+	} else {
+		v = v.Elem()
+		return ie.encoder.compile(v.Type())(b, v)
+	}
+}
+
 func encodeBool(b []byte, v reflect.Value) []byte {
 	if v.Bool() {
 		return append(b, 0x12)
