@@ -150,7 +150,13 @@ func (d *Decoder) _compilePointer(f *decoder, t reflect.Type) {
 }
 
 func (d *Decoder) _compileInterface(f *decoder, t reflect.Type) {
-	throwf("todo: decode interface")
+	if t.NumMethod() != 0 {
+		throwf("binn: cannot unmarshal into non-empty interface (%s)", t)
+	}
+
+	id := new(interfaceDecoder)
+	id.decoder = d
+	*f = id.decode
 }
 
 func (d *Decoder) _compileSlice(f *decoder, t reflect.Type) {
@@ -199,6 +205,56 @@ func (pd *pointerDecoder) decode(b []byte, v reflect.Value) []byte {
 	}
 
 	return pd.decodeElem(b, v.Elem())
+}
+
+var (
+	typNil    = reflect.TypeOf((*interface{})(nil)).Elem()
+	typBool   = reflect.TypeOf(false)
+	typFloat  = reflect.TypeOf(float64(0))
+	typInt    = reflect.TypeOf(int64(0))
+	typMap    = reflect.TypeOf(map[interface{}]interface{}{})
+	typList   = reflect.TypeOf([]interface{}{})
+	typString = reflect.TypeOf("")
+	typBinary = reflect.TypeOf([]byte{})
+)
+
+type interfaceDecoder struct {
+	decoder *Decoder
+}
+
+func (id *interfaceDecoder) decode(b []byte, v reflect.Value) []byte {
+	var t reflect.Type
+
+	switch k := b[0]; {
+	case k <= 0x0f:
+		t = typInt
+	case k <= 0x10:
+		v.Set(reflect.Zero(typNil))
+		return b[1:]
+	case k <= 0x12:
+		t = typBool
+	case k <= 0x13:
+		throwf("binn: TODO - timestamp/duration support")
+	case k <= 0x1f:
+		t = typFloat
+	case k <= 0x2f:
+		t = typInt
+	case k <= 0x4f:
+		t = typMap
+	case k <= 0x6f:
+		t = typList
+	case k <= 0xdf:
+		t = typString
+	default:
+		t = typBinary
+	}
+
+	// Decode the value into a placeholder value.
+	tmp := reflect.New(t).Elem()
+	b = id.decoder.compile(t)(b, tmp)
+
+	v.Set(tmp)
+	return b
 }
 
 type sliceDecoder struct {
