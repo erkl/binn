@@ -3,7 +3,7 @@ package binn
 // skip seeks past the next value in b.
 func skip(b []byte) []byte {
 	n, m := scan(b)
-	b = b[:n]
+	b = b[n:]
 
 	for i := 0; i < m; i++ {
 		b = skip(b)
