@@ -50,9 +50,7 @@ func (d *Decoder) Unmarshal(buf []byte, v interface{}) (err error) {
 
 	// Build an appropriate decoder for this type, and use it.
 	fn := d.compile(rv.Type())
-	rem := fn(buf, rv)
-
-	if len(rem) > 0 {
+	if len(fn(buf, rv)) > 0 {
 		return errorf("binn: input contained redundant data")
 	}
 
