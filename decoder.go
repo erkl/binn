@@ -144,7 +144,9 @@ func (d *Decoder) _compile(f *decoder, t reflect.Type) {
 }
 
 func (d *Decoder) _compilePointer(f *decoder, t reflect.Type) {
-	throwf("todo: decode pointer")
+	pd := new(pointerDecoder)
+	d._compile(&pd.decodeElem, t.Elem())
+	*f = pd.decode
 }
 
 func (d *Decoder) _compileInterface(f *decoder, t reflect.Type) {
@@ -155,7 +157,9 @@ func (d *Decoder) _compileSlice(f *decoder, t reflect.Type) {
 	if t.Elem().Kind() == reflect.Uint8 {
 		*f = decodeByteSlice
 	} else {
-		throwf("todo: decode slice")
+		sd := new(sliceDecoder)
+		d._compile(&sd.decodeElem, t.Elem())
+		*f = sd.decode
 	}
 }
 
@@ -163,7 +167,9 @@ func (d *Decoder) _compileArray(f *decoder, t reflect.Type) {
 	if t.Elem().Kind() == reflect.Uint8 {
 		*f = decodeByteArray
 	} else {
-		throwf("todo: decode slice")
+		ad := new(arrayDecoder)
+		d._compile(&ad.decodeElem, t.Elem())
+		*f = ad.decode
 	}
 }
 
@@ -173,6 +179,99 @@ func (d *Decoder) _compileMap(f *decoder, t reflect.Type) {
 
 func (d *Decoder) _compileStruct(f *decoder, t reflect.Type) {
 	throwf("todo: decode struct")
+}
+
+type pointerDecoder struct {
+	decodeElem decoder
+}
+
+func (pd *pointerDecoder) decode(b []byte, v reflect.Value) []byte {
+	if b[0] == 0x10 {
+		return b[1:]
+	}
+
+	// Make sure we have something to write to.
+	if v.IsNil() {
+		v.Set(reflect.New(v.Type().Elem()))
+	}
+
+	return pd.decodeElem(b, v.Elem())
+}
+
+type sliceDecoder struct {
+	decodeElem decoder
+}
+
+func (sd *sliceDecoder) decode(b []byte, v reflect.Value) []byte {
+	var n int
+	var m uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x50 <= k && k <= 0x6b:
+		n = int(k - 0x50)
+		b = b[1:]
+	case 0x6c <= k && k <= 0x6f:
+		if m, b = decodeK4(b, 0x6c); m > maxInt {
+			throwf("binn: list value size overflow (%d elements)", m)
+		} else {
+			n = int(m)
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	// Allocate a slice of the right size.
+	v.Set(reflect.MakeSlice(v.Type(), n, n))
+
+	for i := 0; i < n; i++ {
+		b = sd.decodeElem(b, v.Index(i))
+	}
+
+	return b
+}
+
+type arrayDecoder struct {
+	decodeElem decoder
+}
+
+func (ad *arrayDecoder) decode(b []byte, v reflect.Value) []byte {
+	var n int
+	var m uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x50 <= k && k <= 0x6b:
+		n = int(k - 0x50)
+		b = b[1:]
+	case 0x6c <= k && k <= 0x6f:
+		if m, b = decodeK4(b, 0x6c); m > maxInt {
+			throwf("binn: list value size overflow (%d elements)", m)
+		} else {
+			n = int(m)
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	// When the destination array isn't large enough to hold the whole encoded
+	// value we have to drop some of the later elements.
+	if m := v.Len(); n <= m {
+		for i := 0; i < n; i++ {
+			b = ad.decodeElem(b, v.Index(i))
+		}
+	} else {
+		for i := 0; i < m; i++ {
+			b = ad.decodeElem(b, v.Index(i))
+		}
+		for i := m; i < n; i++ {
+			b = skip(b)
+		}
+	}
+
+	return b
 }
 
 func decodeBool(b []byte, v reflect.Value) []byte {
