@@ -95,37 +95,14 @@ func (d *Decoder) _compile(f *decoder, t reflect.Type) {
 	switch k := t.Kind(); k {
 	case reflect.Bool:
 		*f = decodeBool
-
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		*f = decodeInt
-	case reflect.Int8:
-		*f = decodeInt
-	case reflect.Int16:
-		*f = decodeInt
-	case reflect.Int32:
-		*f = decodeInt
-	case reflect.Int64:
-		*f = decodeInt
-
-	case reflect.Uint:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		*f = decodeUint
-	case reflect.Uint8:
-		*f = decodeUint
-	case reflect.Uint16:
-		*f = decodeUint
-	case reflect.Uint32:
-		*f = decodeUint
-	case reflect.Uint64:
-		*f = decodeUint
-
-	case reflect.Float32:
+	case reflect.Float32, reflect.Float64:
 		*f = decodeFloat
-	case reflect.Float64:
-		*f = decodeFloat
-
 	case reflect.String:
 		*f = decodeString
-
 	case reflect.Ptr:
 		d._compilePointer(f, t)
 	case reflect.Interface:
@@ -147,7 +124,6 @@ func (d *Decoder) _compile(f *decoder, t reflect.Type) {
 			d._compileSlice(f, t)
 		case reflect.Array:
 			d._compileArray(f, t)
-
 		case reflect.Map:
 			d._compileMap(f, t)
 		case reflect.Struct:

@@ -86,37 +86,16 @@ func (e *Encoder) _compile(f *encoder, t reflect.Type) {
 	switch k := t.Kind(); k {
 	case reflect.Bool:
 		*f = encodeBool
-
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		*f = encodeInt
-	case reflect.Int8:
-		*f = encodeInt
-	case reflect.Int16:
-		*f = encodeInt
-	case reflect.Int32:
-		*f = encodeInt
-	case reflect.Int64:
-		*f = encodeInt
-
-	case reflect.Uint:
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		*f = encodeUint
-	case reflect.Uint8:
-		*f = encodeUint
-	case reflect.Uint16:
-		*f = encodeUint
-	case reflect.Uint32:
-		*f = encodeUint
-	case reflect.Uint64:
-		*f = encodeUint
-
 	case reflect.Float32:
 		*f = encodeFloat32
 	case reflect.Float64:
 		*f = encodeFloat64
-
 	case reflect.String:
 		*f = encodeString
-
 	case reflect.Ptr:
 		e._compilePointer(f, t)
 	case reflect.Interface:
@@ -138,7 +117,6 @@ func (e *Encoder) _compile(f *encoder, t reflect.Type) {
 			e._compileSlice(f, t)
 		case reflect.Array:
 			e._compileArray(f, t)
-
 		case reflect.Map:
 			e._compileMap(f, t)
 		case reflect.Struct:
