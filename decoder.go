@@ -1,6 +1,7 @@
 package binn
 
 import (
+	"bytes"
 	"math"
 	"reflect"
 	"sync"
@@ -187,7 +188,20 @@ func (d *Decoder) _compileMap(f *decoder, t reflect.Type) {
 }
 
 func (d *Decoder) _compileStruct(f *decoder, t reflect.Type) {
-	throwf("todo: decode struct")
+	fields := enumStructFields(t)
+	sd := &structDecoder{
+		fields: make([]structDecoderField, len(fields)),
+	}
+
+	for i, f := range fields {
+		sd.fields[i] = structDecoderField{
+			name:  []byte(f.Name),
+			index: f.Index,
+		}
+		d._compile(&sd.fields[i].decode, f.Type)
+	}
+
+	*f = sd.decode
 }
 
 type pointerDecoder struct {
@@ -377,6 +391,81 @@ func (md *mapDecoder) decode(b []byte, v reflect.Value) []byte {
 	}
 
 	return b
+}
+
+type structDecoder struct {
+	fields []structDecoderField
+}
+
+type structDecoderField struct {
+	name   []byte
+	index  []int
+	decode decoder
+}
+
+func (sd *structDecoder) decode(b []byte, v reflect.Value) []byte {
+	var n int
+	var m uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x30 <= k && k <= 0x4b:
+		n = int(k - 0x30)
+		b = b[1:]
+	case 0x4c <= k && k <= 0x4f:
+		if m, b = decodeK4(b, 0x4c); m > maxInt/2 {
+			throwf("binn: map value size overflow (%d elements)", m)
+		} else {
+			n = int(m)
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	// As a simple optimization, we use the mark variable to store the index
+	// of the field we expect to see next.
+	var key []byte
+	var mark int
+
+outer:
+	for i, l := 0, len(sd.fields); i < n; i++ {
+		key, b = readFieldName(b)
+
+		for j := 0; j < l; j++ {
+			f := sd.fields[(mark+j)%l]
+			if !bytes.Equal(f.name, key) {
+				continue
+			}
+
+			// Decode the value and store the next field index.
+			b = f.decode(b, v.FieldByIndex(f.index))
+			mark = (mark + j + 1) % l
+
+			continue outer
+		}
+
+		// If the destination struct has no field with this name,
+		// jump past the value.
+		b = skip(b)
+	}
+
+	return b
+}
+
+func readFieldName(b []byte) ([]byte, []byte) {
+	switch k := b[0]; {
+	case 0x70 <= k && k <= 0xdb:
+		n, b := int(k-0x70), b[1:]
+		return b[:n], b[n:]
+	case 0xdc <= k && k <= 0xdf:
+		n, b := decodeK4(b, 0xdc)
+		return b[:n], b[n:]
+	default:
+		throwf("binn: cannot unmarshal %s into struct field name", describe(b))
+	}
+
+	panic("unreachable")
 }
 
 func decodeBool(b []byte, v reflect.Value) []byte {
