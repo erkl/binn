@@ -174,7 +174,10 @@ func (d *Decoder) _compileArray(f *decoder, t reflect.Type) {
 }
 
 func (d *Decoder) _compileMap(f *decoder, t reflect.Type) {
-	throwf("todo: decode map")
+	md := new(mapDecoder)
+	d._compile(&md.decodeKey, t.Key())
+	d._compile(&md.decodeElem, t.Elem())
+	*f = md.decode
 }
 
 func (d *Decoder) _compileStruct(f *decoder, t reflect.Type) {
@@ -269,6 +272,52 @@ func (ad *arrayDecoder) decode(b []byte, v reflect.Value) []byte {
 		for i := m; i < n; i++ {
 			b = skip(b)
 		}
+	}
+
+	return b
+}
+
+type mapDecoder struct {
+	decodeKey  decoder
+	decodeElem decoder
+}
+
+func (md *mapDecoder) decode(b []byte, v reflect.Value) []byte {
+	var n int
+	var m uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x30 <= k && k <= 0x4b:
+		n = int(k - 0x30)
+		b = b[1:]
+	case 0x4c <= k && k <= 0x4f:
+		if m, b = decodeK4(b, 0x4c); m > maxInt/2 {
+			throwf("binn: map value size overflow (%d elements)", m)
+		} else {
+			n = int(m)
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	// Grab all involved types at once.
+	mt := v.Type()
+	kt := mt.Key()
+	et := mt.Elem()
+
+	// Make a new map for us to fill in.
+	v.Set(reflect.MakeMap(mt))
+
+	for i := 0; i < n; i++ {
+		key := reflect.New(kt).Elem()
+		elem := reflect.New(et).Elem()
+
+		b = md.decodeKey(b, key)
+		b = md.decodeElem(b, elem)
+
+		v.SetMapIndex(key, elem)
 	}
 
 	return b
