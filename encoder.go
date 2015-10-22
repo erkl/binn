@@ -317,28 +317,12 @@ func encodeBool(b []byte, v reflect.Value) []byte {
 
 func encodeFloat32(b []byte, v reflect.Value) []byte {
 	bits := uint64(math.Float32bits(float32(v.Float())))
-
-	rev := (bits & 0x000000ff) << 24
-	rev |= (bits & 0x0000ff00) << 8
-	rev |= (bits & 0x00ff0000) >> 8
-	rev |= (bits & 0xff000000) >> 24
-
-	return encodeK8(b, 0x14, rev)
+	return encodeK8(b, 0x14, rev32(bits))
 }
 
 func encodeFloat64(b []byte, v reflect.Value) []byte {
 	bits := uint64(math.Float64bits(float64(v.Float())))
-
-	rev := (bits & 0x00000000000000ff) << 56
-	rev |= (bits & 0x000000000000ff00) << 40
-	rev |= (bits & 0x0000000000ff0000) << 24
-	rev |= (bits & 0x00000000ff000000) << 8
-	rev |= (bits & 0x000000ff00000000) >> 8
-	rev |= (bits & 0x0000ff0000000000) >> 24
-	rev |= (bits & 0x00ff000000000000) >> 40
-	rev |= (bits & 0xff00000000000000) >> 56
-
-	return encodeK8(b, 0x18, rev)
+	return encodeK8(b, 0x18, rev64(bits))
 }
 
 func encodeInt(b []byte, v reflect.Value) []byte {

@@ -98,6 +98,30 @@ func (x fieldsByIndex) Less(i, j int) bool {
 	return len(a) < len(b)
 }
 
+// rev32 reverses the lower four bytes in a 64-bit integer.
+func rev32(x uint64) uint64 {
+	rev := (x & 0x000000ff) << 24
+	rev |= (x & 0x0000ff00) << 8
+	rev |= (x & 0x00ff0000) >> 8
+	rev |= (x & 0xff000000) >> 24
+
+	return rev
+}
+
+// rev64 reverses the bytes in a 64-bit integer.
+func rev64(x uint64) uint64 {
+	rev := (x & 0x00000000000000ff) << 56
+	rev |= (x & 0x000000000000ff00) << 40
+	rev |= (x & 0x0000000000ff0000) << 24
+	rev |= (x & 0x00000000ff000000) << 8
+	rev |= (x & 0x000000ff00000000) >> 8
+	rev |= (x & 0x0000ff0000000000) >> 24
+	rev |= (x & 0x00ff000000000000) >> 40
+	rev |= (x & 0xff00000000000000) >> 56
+
+	return rev
+}
+
 // The describe function produces a string describing the type of
 // the first value in b.
 func describe(b []byte) string {
