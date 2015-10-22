@@ -98,6 +98,15 @@ func (x fieldsByIndex) Less(i, j int) bool {
 	return len(a) < len(b)
 }
 
+// The enumMapKeys function returns the keys in a map. Using a variable allows
+// to change the function when running tests to return keys in a deterministic
+// order (this is done in util_test.go's init function).
+var enumMapKeys = enumMapKeysFast
+
+func enumMapKeysFast(v reflect.Value) []reflect.Value {
+	return v.MapKeys()
+}
+
 // rev32 reverses the lower four bytes in a 64-bit integer.
 func rev32(x uint64) uint64 {
 	rev := (x & 0x000000ff) << 24
