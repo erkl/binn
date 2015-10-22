@@ -1,6 +1,7 @@
 package binn
 
 import (
+	"math"
 	"reflect"
 	"sync"
 )
@@ -175,31 +176,157 @@ func (d *Decoder) _compileStruct(f *decoder, t reflect.Type) {
 }
 
 func decodeBool(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode bool")
+	var x bool
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case k == 0x11:
+		x = false
+	case k == 0x12:
+		x = true
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	v.SetBool(x)
+	return b[1:]
 }
 
 func decodeFloat(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode float")
+	var x float64
+	var bits uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x14 <= k && k <= 0x17:
+		bits, b = decodeK8(b, 0x14)
+		x = float64(math.Float32frombits(uint32(rev32(bits))))
+	case 0x18 <= k && k <= 0x1f:
+		bits, b = decodeK8(b, 0x18)
+		x = float64(math.Float64frombits(uint64(rev64(bits))))
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	v.SetFloat(x)
+	return b
 }
 
 func decodeInt(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode int")
+	var x int64
+	var u uint64
+
+	switch k := b[0]; {
+	case k <= 0x07:
+		x, b = int64(k), b[1:]
+	case k <= 0x0f:
+		x, b = 7-int64(k), b[1:]
+	case k == 0x10:
+		return b[1:]
+	case 0x20 <= k && k <= 0x27:
+		if u, b = decodeK8(b, 0x20); u > 1<<(uint(v.Type().Bits())-1) {
+			throwf("binn: -%d overflows %s", u, v.Type())
+		} else {
+			x = -(int64(u - 1)) - 1
+		}
+	case 0x28 <= k && k <= 0x2f:
+		if u, b = decodeK8(b, 0x28); u > 1<<(uint(v.Type().Bits())-1)-1 {
+			throwf("binn: %d overflows %s", u, v.Type())
+		} else {
+			x = int64(u)
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	v.SetInt(x)
+	return b
 }
 
 func decodeUint(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode uint")
+	var x uint64
+
+	switch k := b[0]; {
+	case k <= 0x07:
+		x = uint64(k)
+		b = b[1:]
+	case k <= 0x0f:
+		throwf("binn: %d overflows %s", 7-k, v.Type())
+	case k == 0x10:
+		return b[1:]
+	case 0x20 <= k && k <= 0x27:
+		if x, b = decodeK8(b, 0x20); x != 0 {
+			throwf("binn: -%d overflows %s", x, v.Type())
+		}
+	case 0x28 <= k && k <= 0x2f:
+		if x, b = decodeK8(b, 0x28); x > (1<<uint(v.Type().Bits()))-1 {
+			throwf("binn: %d overflows %s", x, v.Type())
+		}
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	v.SetUint(x)
+	return b
 }
 
 func decodeString(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode string")
+	var n uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0x70 <= k && k <= 0xdb:
+		n, b = uint64(k-0x70), b[1:]
+	case 0xdc <= k && k <= 0xdf:
+		n, b = decodeK4(b, 0xdc)
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	v.SetString(string(b[:n]))
+	return b[n:]
 }
 
 func decodeByteSlice(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode byte slice")
+	var n uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0xe0 <= k && k <= 0xeb:
+		n, b = uint64(k-0xe0), b[1:]
+	case 0xe0 <= k && k <= 0xef:
+		n, b = decodeK4(b, 0xec)
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	x := make([]byte, n)
+	copy(x, b[:n])
+
+	v.SetBytes(x)
+	return b[n:]
 }
 
 func decodeByteArray(b []byte, v reflect.Value) []byte {
-	throwf("todo: decode byte array")
+	var n uint64
+
+	switch k := b[0]; {
+	case k == 0x10:
+		return b[1:]
+	case 0xe0 <= k && k <= 0xeb:
+		n, b = uint64(k-0xe0), b[1:]
+	case 0xe0 <= k && k <= 0xef:
+		n, b = decodeK4(b, 0xec)
+	default:
+		throwf("binn: cannot unmarshal %s into %s", describe(b), v.Type())
+	}
+
+	copy(v.Slice(0, v.Len()).Bytes(), b[:n])
+	return b[n:]
 }
 
 func decodeK4(b []byte, k uint8) (uint64, []byte) {
