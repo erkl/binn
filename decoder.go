@@ -219,17 +219,6 @@ func (pd *pointerDecoder) decode(b []byte, v reflect.Value) []byte {
 	return pd.decodeElem(b, v.Elem())
 }
 
-var (
-	typNil    = reflect.TypeOf((*interface{})(nil)).Elem()
-	typBool   = reflect.TypeOf(false)
-	typFloat  = reflect.TypeOf(float64(0))
-	typInt    = reflect.TypeOf(int64(0))
-	typMap    = reflect.TypeOf(map[interface{}]interface{}{})
-	typList   = reflect.TypeOf([]interface{}{})
-	typString = reflect.TypeOf("")
-	typBinary = reflect.TypeOf([]byte{})
-)
-
 type interfaceDecoder struct {
 	decoder *Decoder
 }

@@ -6,12 +6,28 @@ import (
 	"regexp"
 	"runtime"
 	"sort"
+	"time"
 )
 
 const (
 	intBits = 32 << (^uint(0) >> 63)
 	maxInt  = 1<<(intBits-1) - 1
 )
+
+var (
+	typNil      = reflect.TypeOf((*interface{})(nil)).Elem()
+	typBool     = reflect.TypeOf(false)
+	typTime     = reflect.TypeOf(time.Time{})
+	typDuration = reflect.TypeOf(time.Duration(0))
+	typFloat    = reflect.TypeOf(float64(0))
+	typInt      = reflect.TypeOf(int64(0))
+	typMap      = reflect.TypeOf(map[interface{}]interface{}{})
+	typList     = reflect.TypeOf([]interface{}{})
+	typString   = reflect.TypeOf("")
+	typBinary   = reflect.TypeOf([]byte{})
+)
+
+var errRangeRegexp = regexp.MustCompile("^runtime error: (index|slice bounds) out of range$")
 
 // The throwf function allows for rudimentary exception-style error handling.
 // By wrapping the error in a custom struct type we can easily distinguish
@@ -27,6 +43,13 @@ type thrown struct {
 // errorf is shorthand for fmt.Errorf.
 func errorf(format string, args ...interface{}) error {
 	return fmt.Errorf(format, args...)
+}
+
+// isRangePanic returns true if x is a runtime panic error caused by reading
+// a slice index beyond its length.
+func isRangePanic(x interface{}) bool {
+	err, ok := x.(runtime.Error)
+	return ok && errRangeRegexp.MatchString(err.Error())
 }
 
 // enumStructFields enumerates all fields with "binn" tags in a struct type,
@@ -107,30 +130,6 @@ func enumMapKeysFast(v reflect.Value) []reflect.Value {
 	return v.MapKeys()
 }
 
-// rev32 reverses the lower four bytes in a 64-bit integer.
-func rev32(x uint64) uint64 {
-	rev := (x & 0x000000ff) << 24
-	rev |= (x & 0x0000ff00) << 8
-	rev |= (x & 0x00ff0000) >> 8
-	rev |= (x & 0xff000000) >> 24
-
-	return rev
-}
-
-// rev64 reverses the bytes in a 64-bit integer.
-func rev64(x uint64) uint64 {
-	rev := (x & 0x00000000000000ff) << 56
-	rev |= (x & 0x000000000000ff00) << 40
-	rev |= (x & 0x0000000000ff0000) << 24
-	rev |= (x & 0x00000000ff000000) << 8
-	rev |= (x & 0x000000ff00000000) >> 8
-	rev |= (x & 0x0000ff0000000000) >> 24
-	rev |= (x & 0x00ff000000000000) >> 40
-	rev |= (x & 0xff00000000000000) >> 56
-
-	return rev
-}
-
 // The describe function produces a string describing the type of
 // the first value in b.
 func describe(b []byte) string {
@@ -165,11 +164,26 @@ func describe(b []byte) string {
 	}
 }
 
-// isRangePanic returns true if x is a runtime panic error caused by reading
-// a slice index beyond its length.
-func isRangePanic(x interface{}) bool {
-	err, ok := x.(runtime.Error)
-	return ok && errRangeRegexp.MatchString(err.Error())
+// rev32 reverses the lower four bytes in a 64-bit integer.
+func rev32(x uint64) uint64 {
+	rev := (x & 0x000000ff) << 24
+	rev |= (x & 0x0000ff00) << 8
+	rev |= (x & 0x00ff0000) >> 8
+	rev |= (x & 0xff000000) >> 24
+
+	return rev
 }
 
-var errRangeRegexp = regexp.MustCompile("^runtime error: (index|slice bounds) out of range$")
+// rev64 reverses the bytes in a 64-bit integer.
+func rev64(x uint64) uint64 {
+	rev := (x & 0x00000000000000ff) << 56
+	rev |= (x & 0x000000000000ff00) << 40
+	rev |= (x & 0x0000000000ff0000) << 24
+	rev |= (x & 0x00000000ff000000) << 8
+	rev |= (x & 0x000000ff00000000) >> 8
+	rev |= (x & 0x0000ff0000000000) >> 24
+	rev |= (x & 0x00ff000000000000) >> 40
+	rev |= (x & 0xff00000000000000) >> 56
+
+	return rev
+}
